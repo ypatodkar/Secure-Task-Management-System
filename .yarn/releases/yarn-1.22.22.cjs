@@ -94618,7 +94618,7 @@ function setFlags(commander) {
   commander.description('Manages package owners.');
 }
 
-var _buildSubCommands = (0, (_buildSubCommands2 || _load_buildSubCommands()).default)('owner', {
+var _buildSubCommands = (0, (_buildSubCommands2 || _load_buildSubCommands()).default)(manager, {
   add(config, reporter, flags, args) {
     return mutate(args, config, reporter, (username, name) => ({
       info: reporter.lang('ownerAdding', username, name),

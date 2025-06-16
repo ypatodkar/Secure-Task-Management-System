@@ -5,17 +5,29 @@ import {
     OneToMany,
     CreateDateColumn,
     UpdateDateColumn,
+    ManyToOne,
+    JoinColumn,
+    Tree,
+    TreeChildren,
+    TreeParent
   } from 'typeorm';
   import { User } from './user.entity';
   import { Task } from './task.entity';
   
   @Entity('organizations')
+  @Tree("closure-table")
   export class Organization {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
   
     @Column({ unique: true })
     name!: string;
+  
+    @Column({ nullable: true })
+    description?: string;
+  
+    @Column({ default: 1 })
+    level!: number;
   
     @CreateDateColumn()
     createdAt!: Date;
@@ -24,6 +36,17 @@ import {
     updatedAt!: Date;
   
     // --- Relationships ---
+  
+    // Parent-child relationship
+    @TreeChildren()
+    children!: Organization[];
+  
+    @TreeParent()
+    @JoinColumn({ name: 'parentId' })
+    parent!: Organization | null;
+  
+    @Column({ nullable: true })
+    parentId?: string;
   
     // One organization can have many users
     @OneToMany(() => User, (user) => user.organization)

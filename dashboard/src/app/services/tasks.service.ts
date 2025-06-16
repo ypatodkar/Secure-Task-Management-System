@@ -14,8 +14,8 @@ export class TasksService {
   constructor(private http: HttpClient) {}
 
   private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
-    console.log("Token :", token)
+    const token = localStorage.getItem('accessToken');
+    console.log("Token:", token);
     return new HttpHeaders({
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
@@ -32,6 +32,7 @@ export class TasksService {
   }
 
   createTask(task: Partial<Task>): Observable<Task> {
+    console.log('Creating task with data:', task);
     return this.http.post<Task>(this.apiUrl, task, { headers: this.getHeaders() }).pipe(
       catchError(error => {
         console.error('Error creating task:', error);
@@ -41,6 +42,9 @@ export class TasksService {
   }
 
   updateTask(taskId: string, task: Partial<Task>): Observable<Task> {
+    console.log('Updating task with data:', `${this.apiUrl}/${taskId}`);
+    console.log(' task  data:', task);
+
     return this.http.patch<Task>(`${this.apiUrl}/${taskId}`, task, { headers: this.getHeaders() }).pipe(
       catchError(error => {
         console.error('Error updating task:', error);

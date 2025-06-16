@@ -171,7 +171,7 @@ export class AuthService {
     const hashedPassword = await this.hashPassword(password);
 
     // Assign a default role (e.g., 'user')
-    const defaultUserRole = await this.rolesRepository.findOne({ where: { name: RoleName.USER } });
+    const defaultUserRole = await this.rolesRepository.findOne({ where: { name: RoleName.MANAGER } });
     if (!defaultUserRole) {
       throw new InternalServerErrorException('Default user role not found. Please seed roles first.');
     }
@@ -198,31 +198,46 @@ export class AuthService {
    * @param loginDto The login credentials.
    * @returns An object containing the JWT access token.
    */
-  async login(loginDto: LoginDto): Promise<{ accessToken: string }> {
-    const { email, password } = loginDto;
-    const user = await this.usersRepository.findOne({
-      where: { email },
-      select: ['id', 'email', 'password'], // Explicitly select password
-      relations: ['roles', 'roles.permissions'], // Load roles and their permissions
-    });
 
+  async login(loginDto: LoginDto): Promise<{ accessToken: string; user: any }> {
+    const { email, password } = loginDto;
+    
+    // The query to find the user is correct.
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('roles.permissions', 'permissions')
+      .where('user.email = :email', { email })
+      .getOne();
+  
     if (!user || !(await this.comparePasswords(password, user.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
-    // Prepare payload for JWT
+  
+    // The JWT payload is also correct.
     const payload = {
       sub: user.id,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       roles: user.roles.map(role => role.name),
-      permissions: user.roles.flatMap(role => role.permissions.map(perm => perm.name)),
+      permissions: user.roles.flatMap(role => role.permissions.map(perm => perm.name))
     };
-
+  
+    const accessToken = this.jwtService.sign(payload);
+  
+    // THE FIX IS HERE:
+    // Create a user object for the response, making sure to remove the password.
+    const { password: _, ...userForResponse } = user;
+  
+    // Return BOTH the accessToken and the user object.
     return {
-      accessToken: this.jwtService.sign(payload),
+      accessToken: accessToken,
+      user: userForResponse
     };
   }
-
+  
   /**
    * Validates a user for JWT strategy.
    * This method is called by the JwtStrategy to validate the user from the JWT payload.

@@ -9,36 +9,36 @@ import { GetUser } from '../../decorators/get-user.decorator'; // We will create
 import { RolesGuard } from '../../guards/roles.guard'; // We will create this
 import { HasRoles } from '../../decorators/has-roles.decorator'; // We will create this
 import { RoleName, PermissionName } from '@secure-task-manager/data';
+import { HasPermissions } from '../../decorators/has-roles.decorator';
 
 @Controller('tasks') // Base route for tasks endpoints (e.g., /api/tasks)
 @UseGuards(AuthGuard('jwt')) // Protect all task endpoints with JWT authentication
 export class TasksController {
   constructor(private tasksService: TasksService) {}
 
+
   @Post()
-  @UsePipes(ValidationPipe) // Apply validation
-  @UseGuards(RolesGuard) // Apply RBAC guard
-  @HasRoles(RoleName.ADMIN, RoleName.MANAGER, RoleName.USER) // Users with these roles can create tasks
+  @UsePipes(ValidationPipe)
+  // CRITICAL CHANGE: Only ADMIN and MANAGER can create tasks.
+  @HasPermissions(PermissionName.CREATE_TASK)
   async createTask(
     @Body() createTaskDto: CreateTaskDto,
-    @GetUser() user: User, // Get the authenticated user
-  ): Promise<any> {
+    @GetUser() user: User,
+  ): Promise<Task> {
     return this.tasksService.createTask(createTaskDto, user);
   }
 
+
   @Get()
-  @UsePipes(new ValidationPipe({ transform: true })) // Enable transform for query parameters
-  @UseGuards(RolesGuard)
-  @HasRoles(RoleName.ADMIN, RoleName.MANAGER, RoleName.USER, RoleName.GUEST) // Even guests might view some tasks
+  // This can remain broad, as the service now handles the scoping.
+  @HasPermissions(PermissionName.READ_TASK, PermissionName.READ_OWN_TASK)
   async getTasks(
-    @Query() filterDto: TaskFilterDto,
+    @Query(ValidationPipe) filterDto: TaskFilterDto,
     @GetUser() user: User,
   ): Promise<Task[]> {
-    // Implement permission check within the service for fine-grained control
-    // Or, define more specific permissions like READ_ALL_TASKS vs READ_OWN_TASKS
-    // For now, the service handles organization-level filtering.
     return this.tasksService.getTasks(filterDto, user);
   }
+  
 
   @Get('/:id')
   @UseGuards(RolesGuard)

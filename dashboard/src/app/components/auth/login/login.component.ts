@@ -1,13 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   template: `
     <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div class="max-w-md w-full space-y-8">
@@ -26,7 +26,7 @@ import { AuthService } from '../../../services/auth.service';
                 type="email"
                 formControlName="email"
                 required
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
               />
             </div>
@@ -38,67 +38,67 @@ import { AuthService } from '../../../services/auth.service';
                 type="password"
                 formControlName="password"
                 required
-                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
               />
             </div>
-          </div>
-
-          <div *ngIf="errorMessage" class="text-red-500 text-sm text-center">
-            {{ errorMessage }}
           </div>
 
           <div>
             <button
               type="submit"
               [disabled]="!loginForm.valid"
-              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               Sign in
             </button>
+          </div>
+
+          <div class="text-center">
+            <p class="text-sm text-gray-600">
+              Don't have an account?
+              <a routerLink="/register" class="font-medium text-indigo-600 hover:text-indigo-500">
+                Register here
+              </a>
+            </p>
+          </div>
+
+          <div *ngIf="errorMessage" class="text-red-600 text-center">
+            {{ errorMessage }}
           </div>
         </form>
       </div>
     </div>
   `,
+  styles: []
 })
 export class LoginComponent {
-  loginForm = new FormGroup({
-    email: new FormControl('', [Validators.required, Validators.email]),
-    password: new FormControl('', [Validators.required, Validators.minLength(6)]),
-  });
+  loginForm: FormGroup;
+  errorMessage: string = '';
 
-  errorMessage = '';
-
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private fb: FormBuilder,
+    private authService: AuthService,
+    private router: Router
+  ) {
+    this.loginForm = this.fb.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]]
+    });
+  }
 
   onSubmit() {
     if (this.loginForm.valid) {
-      const email = this.loginForm.get('email')?.value;
-      const password = this.loginForm.get('password')?.value;
-
-      if (email && password) {
-        this.authService.login(email, password).subscribe({
-          next: (response) => {
-            console.log('Login response:', response);
-            if (response.accessToken) {
-              localStorage.setItem('token', response.accessToken);
-              console.log('Token stored:', response.accessToken);
-              this.router.navigate(['/tasks']);
-            } else {
-              this.errorMessage = 'Invalid response from server';
-            }
-          },
-          error: (error) => {
-            console.error('Login error:', error);
-            if (error.status === 401) {
-              this.errorMessage = 'Invalid email or password';
-            } else {
-              this.errorMessage = 'An error occurred. Please try again.';
-            }
-          }
-        });
-      }
+      const { email, password } = this.loginForm.value;
+      this.authService.login(email, password).subscribe({
+        next: () => {
+          this.router.navigate(['/tasks']);
+        },
+        error: (error) => {
+          console.error('Login error:', error);
+          this.errorMessage = error.error?.message || 'An error occurred during login';
+        }
+      });
     }
   }
 }

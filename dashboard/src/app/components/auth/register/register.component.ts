@@ -40,7 +40,6 @@ export class RegisterComponent {
       if (firstName && lastName && email && password) {
         this.authService.register({ firstName, lastName, email, password }).subscribe({
           next: (response) => {
-            localStorage.setItem('token', response.accessToken);
             this.router.navigate(['/tasks']);
           },
           error: (error) => {

@@ -5,6 +5,8 @@ import { AppService } from './app.service';
 import { User, Organization, Role, Permission, Task, AuditLog } from '@secure-task-manager/data';
 import { AuthModule } from './auth/auth.module'; // Import AuthModule
 import { TasksModule } from './tasks/tasks.module'; // Import TasksModule
+import { UsersModule } from './users/users.module'; 
+import { OrganizationsModule } from './organizations/organizations.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { TasksModule } from './tasks/tasks.module'; // Import TasksModule
     }),
     AuthModule, // Add AuthModule here
     TasksModule, // Add TasksModule here
+    UsersModule,
+    OrganizationsModule
   ],
   controllers: [AppController],
   providers: [AppService],

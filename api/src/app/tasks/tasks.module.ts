@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'; // Import TypeOrmModule
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { Task, User, Organization, AuditLog } from '@secure-task-manager/data'; // Import relevant entities
-import { AuthModule } from '../../auth/auth.module'; // Import AuthModule to make PassportModule and JwtModule available
+import { AuthModule } from '../auth/auth.module'; // Import AuthModule to make PassportModule and JwtModule available
 
 @Module({
   imports: [

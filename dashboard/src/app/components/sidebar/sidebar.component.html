@@ -1,0 +1,36 @@
+<aside class="fixed top-16 left-0 h-full w-64 bg-gray-800 text-white p-4 flex flex-col justify-between" style="
+    height: 90%;">
+    <nav>
+      <ul class="space-y-2">
+        <!-- Standard User Link -->
+        <li>
+          <a routerLink="/tasks" routerLinkActive="bg-gray-700"
+             class="flex items-center space-x-3 px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+            <span>Tasks</span>
+          </a>
+        </li>
+  
+        <!-- Admin-Only Section -->
+        <li *ngIf="isAdmin$ | async">
+          <hr class="my-4 border-gray-600">
+          <div class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase">Admin</div>
+          <a routerLink="/admin/users" routerLinkActive="bg-gray-700"
+             class="flex items-center space-x-3 px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+            <span>Manage Users</span>
+          </a>
+          <a routerLink="/admin/organizations" routerLinkActive="bg-gray-700"
+             class="flex items-center space-x-3 px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+            <span>Manage Organizations</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    
+    <!-- Logout button at the bottom -->
+    <div>
+      <button (click)="logout()" class="w-full flex items-center space-x-3 text-left px-4 py-2 rounded hover:bg-gray-700 transition-colors">
+        <span>Logout</span>
+      </button>
+    </div>
+  </aside>
+  

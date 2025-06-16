@@ -1,90 +1,65 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Task, TaskStatus } from '@secure-task-manager/data';
+import { Task, User } from '@secure-task-manager/data';
+import { UsersService } from '../../../services/users.service';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-task-form',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './task-form.component.html',
-  styleUrls: [],
 })
 export class TaskFormComponent implements OnInit, OnChanges {
   @Input() taskToEdit: Task | null = null;
-  @Output() saveTask = new EventEmitter<Partial<Task>>();
+  @Output() saveTask = new EventEmitter<any>(); // Emits the raw form value
   @Output() cancel = new EventEmitter<void>();
 
   taskForm!: FormGroup;
-  TaskStatus = TaskStatus; // Make enum available in template
+  users$: Observable<User[]>;
 
-  constructor() {
+  constructor(private usersService: UsersService) {
+    this.users$ = this.usersService.getUsers();
     this.initForm();
   }
 
-  ngOnInit() {
-    this.initForm();
-  }
+  ngOnInit() {}
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['taskToEdit']) {
-      console.log('Task to edit changed:', changes['taskToEdit'].currentValue);
       this.initForm();
     }
   }
 
   private initForm() {
-    console.log('Initializing form with task:', this.taskToEdit);
-    
-    // Create the form with the task data
     this.taskForm = new FormGroup({
-      title: new FormControl(this.taskToEdit?.title || '', [
-        Validators.required,
-        Validators.minLength(3),
-        Validators.maxLength(100)
-      ]),
-      description: new FormControl(this.taskToEdit?.description || '', [
-        Validators.required,
-        Validators.minLength(10),
-        Validators.maxLength(500)
-      ]),
-      status: new FormControl(this.taskToEdit?.status || TaskStatus.OPEN, [
-        Validators.required
-      ]),
-      assigneeId: new FormControl(this.taskToEdit?.assigneeId || null)
+      title: new FormControl(this.taskToEdit?.title || '', [Validators.required, Validators.minLength(3)]),
+      description: new FormControl(this.taskToEdit?.description || '', [Validators.required]),
+      assigneeId: new FormControl(this.taskToEdit?.assigneeId || '', [Validators.required]),
     });
-
-    // Log the initial form values
-    console.log('Form initialized with values:', this.taskForm.value);
   }
+
+  // --- START OF THE FIX ---
+  // Add these public getters to expose the form controls to the template
+  get title() {
+    return this.taskForm.get('title');
+  }
+
+  get description() {
+    return this.taskForm.get('description');
+  }
+  // --- END OF THE FIX ---
 
   onSubmit() {
     if (this.taskForm.valid) {
-      const formValue = this.taskForm.value;
-      console.log('Submitting form with values:', formValue);
-      
-      // Remove id from the task data before emitting
-      const taskData: Partial<Task> = {
-        title: formValue.title,
-        description: formValue.description,
-        status: formValue.status,
-        assigneeId: formValue.assigneeId
-      };
-
-      console.log('Emitting task data:', taskData);
-      this.saveTask.emit(taskData);
+      this.saveTask.emit(this.taskForm.value);
     } else {
-      console.log('Form is invalid:', this.taskForm.errors);
+      this.taskForm.markAllAsTouched();
     }
   }
 
   onCancel() {
-    console.log('Canceling form edit');
     this.cancel.emit();
   }
-
-  // Helper methods for form validation
-  get title() { return this.taskForm.get('title'); }
-  get description() { return this.taskForm.get('description'); }
-  get status() { return this.taskForm.get('status'); }
 }

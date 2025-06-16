@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException, UnauthorizedException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, BadRequestException, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Task, User, Organization, TaskStatus, AuditLog, AuditLogAction } from '@secure-task-manager/data'; // Import entities
+import { Task, User, Organization, TaskStatus, AuditLog, AuditLogAction, RoleName } from '@secure-task-manager/data'; // Import entities
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TaskFilterDto } from './dto/task-filter.dto';
@@ -26,45 +26,34 @@ export class TasksService {
    * @returns The created task.
    */
   async createTask(createTaskDto: CreateTaskDto, creatorUser: User): Promise<Task> {
-    // Ensure the creator has an organization linked
-    if (!creatorUser.organizationId) {
-      throw new BadRequestException('User must belong to an organization to create tasks.');
+    const creatorRole = creatorUser.roles[0]?.name;
+    if (creatorRole !== RoleName.ADMIN && creatorRole !== RoleName.MANAGER) {
+      throw new ForbiddenException('You do not have permission to create tasks.');
     }
 
-    let assignee: User | undefined;
-    if (createTaskDto.assigneeId) {
-      assignee = await this.usersRepository.findOne({ where: { id: createTaskDto.assigneeId } });
-      if (!assignee || assignee.organizationId !== creatorUser.organizationId) {
-        throw new NotFoundException('Assignee not found or does not belong to the same organization.');
-      }
+    if (!createTaskDto.assigneeId) {
+      throw new ForbiddenException('An assignee is required to create a task.');
+    }
+
+    const assignee = await this.usersRepository.findOneBy({ id: createTaskDto.assigneeId });
+    if (!assignee) {
+      throw new NotFoundException(`Assignee with ID "${createTaskDto.assigneeId}" not found.`);
+    }
+
+    // Managers can only assign tasks to users within their own organization.
+    if (creatorRole === RoleName.MANAGER && assignee.organizationId !== creatorUser.organizationId) {
+      throw new ForbiddenException('You can only assign tasks to users in your own organization.');
     }
 
     const task = this.tasksRepository.create({
       ...createTaskDto,
       creator: creatorUser,
-      creatorId: creatorUser.id,
-      organization: creatorUser.organization, // Link task to creator's organization
-      organizationId: creatorUser.organizationId,
       assignee: assignee,
-      assigneeId: assignee?.id,
-      status: TaskStatus.OPEN, // Default status
+      organizationId: assignee.organizationId, // Task belongs to the assignee's organization
+      status: TaskStatus.OPEN,
     });
 
-    try {
-      const savedTask = await this.tasksRepository.save(task);
-      await this.logAudit(
-        AuditLogAction.CREATE,
-        'Task',
-        savedTask.id,
-        null,
-        savedTask,
-        creatorUser.id
-      );
-      return savedTask;
-    } catch (error) {
-      console.error('Error creating task:', error.message);
-      throw new InternalServerErrorException('Failed to create task.');
-    }
+    return this.tasksRepository.save(task);
   }
 
   /**
@@ -74,40 +63,45 @@ export class TasksService {
    * @returns Array of tasks.
    */
   async getTasks(filterDto: TaskFilterDto, requestingUser: User): Promise<Task[]> {
-    const query = this.tasksRepository.createQueryBuilder('task');
-    query.leftJoinAndSelect('task.creator', 'creator');
-    query.leftJoinAndSelect('task.assignee', 'assignee');
-    query.leftJoinAndSelect('task.organization', 'organization');
+    const userRole = requestingUser.roles[0]?.name;
 
-    // Users can only see tasks within their organization
-    if (requestingUser.organizationId) {
-      query.andWhere('task.organizationId = :organizationId', { organizationId: requestingUser.organizationId });
-    } else {
-      throw new UnauthorizedException('User must belong to an organization to view tasks.');
+    const query = this.tasksRepository.createQueryBuilder('task')
+      .leftJoinAndSelect('task.creator', 'creator')
+      .leftJoinAndSelect('task.assignee', 'assignee');
+
+    switch (userRole) {
+      case RoleName.ADMIN:
+        // Admin sees all tasks. No additional filters needed.
+        break;
+
+      case RoleName.MANAGER:
+        // Manager sees all tasks within their organization.
+        query.where('task.organizationId = :organizationId', {
+          organizationId: requestingUser.organizationId,
+        });
+        break;
+
+      case RoleName.USER:
+        // User only sees tasks assigned to them.
+        query.where('task.assigneeId = :userId', { userId: requestingUser.id });
+        break;
+
+      default:
+        // If user has no recognized role, they see nothing.
+        return [];
     }
 
-    // Apply status filter
+    // You can still add other filters like status or search on top
     if (filterDto.status) {
       query.andWhere('task.status = :status', { status: filterDto.status });
     }
-
-    // Apply search filter (title or description)
     if (filterDto.search) {
       query.andWhere('(task.title LIKE :search OR task.description LIKE :search)', { search: `%${filterDto.search}%` });
     }
 
-    // Apply creator filter
-    if (filterDto.creatorId) {
-      query.andWhere('task.creatorId = :creatorId', { creatorId: filterDto.creatorId });
-    }
-
-    // Apply assignee filter
-    if (filterDto.assigneeId) {
-      query.andWhere('task.assigneeId = :assigneeId', { assigneeId: filterDto.assigneeId });
-    }
-
     return query.getMany();
   }
+
 
   /**
    * Finds a single task by ID.

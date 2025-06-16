@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm'; // Import TypeOrmModule
 import { AuditLogsController } from './audit-logs.controller';
 import { AuditLogsService } from './audit-logs.service';
 import { AuditLog, User } from '@secure-task-manager/data'; // Import relevant entities
-import { AuthModule } from '../../auth/auth.module'; // Import AuthModule for AuthGuard, GetUser, RolesGuard
+import { AuthModule } from '../auth/auth.module'; // Import AuthModule for AuthGuard, GetUser, RolesGuard
 
 @Module({
   imports: [
